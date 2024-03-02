@@ -20,27 +20,53 @@ class Countries:
                                      host=os.environ.get('POSTGRES_HOST'),
                                      port=os.environ.get('POSTGRES_PORT'))
 
-    def get_countries(self, request: Flask.request_class):
+    @staticmethod
+    def get_countries(region=None):
         DB_username, DB_password, DB_host, DB_port, DB_name = get_db_params()
         try:
             conn = psycopg2.connect(dbname=DB_name, user=DB_username, password=DB_password, host=DB_host)
-
-            region_param = request.args.get('region')
-            if region_param is None:
+            if region is None:
                 cursor = conn.cursor()
                 cursor.execute("SELECT * FROM countries")
                 rows = cursor.fetchall()
                 cursor.close()
                 conn.close()
-                return jsonify(rows), 200
+                return rows
             else:
                 cursor = conn.cursor()
-                cursor.execute("SELECT * FROM countries WHERE region = %s", (region_param,))
+                cursor.execute("SELECT * FROM countries WHERE region = %s", (region,))
                 rows = cursor.fetchall()
-                return jsonify(rows), 200
+                return rows
         except:
-            return jsonify({"status": "Cannot connect to database"}), 500
+            return "Cannot connect to database"
 
+    @staticmethod
+    def get_country(code):
+        DB_username, DB_password, DB_host, DB_port, DB_name = get_db_params()
+        try:
+            conn = psycopg2.connect(dbname=DB_name, user=DB_username, password=DB_password, host=DB_host)
+            cursor = conn.cursor()
+            cursor.execute('SELECT * FROM countries WHERE %s = alpha2', (code,))
+            row = cursor.fetchone()
+            if row is None:
+                return 'Country not found'
+            cursor.close()
+            conn.close()
+            return row
+        except:
+            return 'Cannot connect to database'
 
-
+    @staticmethod
+    def check_country_code(countryCode):  # check if country code is correct
+        if countryCode is None:
+            return 'Country code is empty', 400
+        if len(countryCode) > 2:
+            return 'Country code is too long', 400
+        if len(countryCode) < 2:
+            return 'Country code is too short', 400
+        rows = Countries.get_country(countryCode)
+        if rows is None:
+            return 'Country code is incorrect', 400
+        else:
+            return 'OK', 200
 
